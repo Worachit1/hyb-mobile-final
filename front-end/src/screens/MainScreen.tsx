@@ -7,22 +7,24 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import CreateUserScreen from './CreateUserScreen';
-import UserListScreen from './UserListScreen';
 import ProfileScreen from './ProfileScreen';
+import StudentsScreen from './StudentsScreen';
+import SocialFeedScreen from './SocialFeedScreen';
+import MyPostsScreen from './MyPostsScreen';
 
-
-type TabType = 'create' | 'list' | 'profile';
+type TabType = 'students' | 'social' | 'myposts' | 'profile';
 
 const MainScreen: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<TabType>('create'); // Start with create tab
+  const [activeTab, setActiveTab] = useState<TabType>('profile'); // Start with profile tab after signin
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'create':
-        return <CreateUserScreen />;
-      case 'list':
-        return <UserListScreen />;
+      case 'students':
+        return <StudentsScreen />;
+      case 'social':
+        return <SocialFeedScreen />;
+      case 'myposts':
+        return <MyPostsScreen />;
       case 'profile':
         return <ProfileScreen />;
     }
@@ -42,40 +44,60 @@ const MainScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === 'create' && styles.activeTab
+            activeTab === 'students' && styles.activeTab
           ]}
-          onPress={() => setActiveTab('create')}
+          onPress={() => setActiveTab('students')}
         >
           <Ionicons
-            name={activeTab === 'create' ? 'person-add' : 'person-add-outline'}
-            size={24}
-            color={activeTab === 'create' ? '#007AFF' : '#666'}
+            name={activeTab === 'students' ? 'school' : 'school-outline'}
+            size={20}
+            color={activeTab === 'students' ? '#007AFF' : '#666'}
           />
           <Text style={[
             styles.tabText,
-            activeTab === 'create' && styles.activeTabText
+            activeTab === 'students' && styles.activeTabText
           ]}>
-            Create User
+            Students
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[
             styles.tabButton,
-            activeTab === 'list' && styles.activeTab
+            activeTab === 'social' && styles.activeTab
           ]}
-          onPress={() => setActiveTab('list')}
+          onPress={() => setActiveTab('social')}
         >
           <Ionicons
-            name={activeTab === 'list' ? 'people' : 'people-outline'}
-            size={24}
-            color={activeTab === 'list' ? '#007AFF' : '#666'}
+            name={activeTab === 'social' ? 'chatbubbles' : 'chatbubbles-outline'}
+            size={20}
+            color={activeTab === 'social' ? '#007AFF' : '#666'}
           />
           <Text style={[
             styles.tabText,
-            activeTab === 'list' && styles.activeTabText
+            activeTab === 'social' && styles.activeTabText
           ]}>
-            User List
+            Social
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === 'myposts' && styles.activeTab
+          ]}
+          onPress={() => setActiveTab('myposts')}
+        >
+          <Ionicons
+            name={activeTab === 'myposts' ? 'document-text' : 'document-text-outline'}
+            size={20}
+            color={activeTab === 'myposts' ? '#007AFF' : '#666'}
+          />
+          <Text style={[
+            styles.tabText,
+            activeTab === 'myposts' && styles.activeTabText
+          ]}>
+            My Posts
           </Text>
         </TouchableOpacity>
 
@@ -88,7 +110,7 @@ const MainScreen: React.FC = () => {
         >
           <Ionicons
             name={activeTab === 'profile' ? 'person' : 'person-outline'}
-            size={24}
+            size={20}
             color={activeTab === 'profile' ? '#007AFF' : '#666'}
           />
           <Text style={[
@@ -110,6 +132,25 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  comingSoon: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+  },
+  comingSoonTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  comingSoonText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
   },
   bottomNav: {
     flexDirection: 'row',

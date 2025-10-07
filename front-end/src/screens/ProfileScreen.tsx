@@ -10,7 +10,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 
 const ProfileScreen: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+
+  const handleRefresh = async () => {
+    try {
+      await refreshUser();
+      Alert.alert('Success', 'Profile refreshed successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh profile');
+    }
+  };
 
   const handleLogout = () => {
     Alert.alert(
@@ -36,8 +45,8 @@ const ProfileScreen: React.FC = () => {
         <View style={styles.avatarContainer}>
           <Ionicons name="person" size={60} color="#007AFF" />
         </View>
-        <Text style={styles.name}>{user?.name}</Text>
-        <Text style={styles.email}>{user?.email}</Text>
+        <Text style={styles.name}>{user?.name || 'N/A'}</Text>
+        <Text style={styles.email}>{user?.email || 'N/A'}</Text>
       </View>
 
       <View style={styles.content}>
@@ -48,26 +57,101 @@ const ProfileScreen: React.FC = () => {
             <Ionicons name="person-outline" size={20} color="#666" />
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Full Name</Text>
-              <Text style={styles.infoValue}>{user?.name}</Text>
+              <Text style={styles.infoValue}>{user?.name || 'N/A'}</Text>
             </View>
           </View>
+
+          {user?.firstname && (
+            <View style={styles.infoItem}>
+              <Ionicons name="person-outline" size={20} color="#666" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>First Name</Text>
+                <Text style={styles.infoValue}>{user.firstname}</Text>
+              </View>
+            </View>
+          )}
+
+          {user?.lastname && (
+            <View style={styles.infoItem}>
+              <Ionicons name="person-outline" size={20} color="#666" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Last Name</Text>
+                <Text style={styles.infoValue}>{user.lastname}</Text>
+              </View>
+            </View>
+          )}
 
           <View style={styles.infoItem}>
             <Ionicons name="mail-outline" size={20} color="#666" />
             <View style={styles.infoContent}>
               <Text style={styles.infoLabel}>Email Address</Text>
-              <Text style={styles.infoValue}>{user?.email}</Text>
+              <Text style={styles.infoValue}>{user?.email || 'N/A'}</Text>
             </View>
           </View>
 
+          {user?.education?.studentId && (
+            <View style={styles.infoItem}>
+              <Ionicons name="school-outline" size={20} color="#666" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Student ID</Text>
+                <Text style={styles.infoValue}>{user.education.studentId}</Text>
+              </View>
+            </View>
+          )}
+
+          {user?.education?.major && (
+            <View style={styles.infoItem}>
+              <Ionicons name="book-outline" size={20} color="#666" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Major</Text>
+                <Text style={styles.infoValue}>{user.education.major}</Text>
+              </View>
+            </View>
+          )}
+
+          {user?.education?.enrollmentYear && (
+            <View style={styles.infoItem}>
+              <Ionicons name="calendar-outline" size={20} color="#666" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Enrollment Year</Text>
+                <Text style={styles.infoValue}>{user.education.enrollmentYear}</Text>
+              </View>
+            </View>
+          )}
+
+          {user?.role && (
+            <View style={styles.infoItem}>
+              <Ionicons name="person-circle-outline" size={20} color="#666" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Role</Text>
+                <Text style={styles.infoValue}>{user.role}</Text>
+              </View>
+            </View>
+          )}
+
+          {user?.type && (
+            <View style={styles.infoItem}>
+              <Ionicons name="ribbon-outline" size={20} color="#666" />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Type</Text>
+                <Text style={styles.infoValue}>{user.type}</Text>
+              </View>
+            </View>
+          )}
+
           <View style={styles.infoItem}>
-            <Ionicons name="shield-checkmark-outline" size={20} color="#666" />
+            <Ionicons name="key-outline" size={20} color="#666" />
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Account Status</Text>
-              <Text style={[styles.infoValue, styles.activeStatus]}>Active</Text>
+              <Text style={styles.infoLabel}>Authentication</Text>
+              <Text style={[styles.infoValue, styles.activeStatus]}>Token + API Key</Text>
             </View>
           </View>
         </View>
+
+        <TouchableOpacity style={styles.refreshButton} onPress={handleRefresh}>
+          <Ionicons name="refresh-outline" size={20} color="#fff" />
+          <Text style={styles.refreshButtonText}>Refresh Profile</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#fff" />
@@ -151,6 +235,22 @@ const styles = StyleSheet.create({
   activeStatus: {
     color: '#28a745',
   },
+  refreshButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 12,
+    height: 50,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 'auto',
+    marginBottom: 15,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 10,
+  },
   logoutButton: {
     backgroundColor: '#ff3b30',
     borderRadius: 12,
@@ -158,7 +258,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto',
     marginBottom: 40,
   },
   logoutButtonText: {

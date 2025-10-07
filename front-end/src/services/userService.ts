@@ -1,18 +1,14 @@
-import axios, { AxiosResponse } from "axios";
+import axios from "axios";
 import { API_CONFIG, API_TIMEOUT } from "../config/api";
-import {
-  CreateUserRequest,
-  ApiResponse,
-  User,
-  GetUsersResponse,
-} from "../types/api";
+import { ApiResponse } from "../types/api";
 
-// Create axios instance
+// Create axios instance for class API calls
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: API_TIMEOUT,
   headers: {
     "Content-Type": "application/json",
+    "x-api-key": API_CONFIG.API_KEY,
   },
 });
 
@@ -30,8 +26,7 @@ apiClient.interceptors.request.use(
 
 // Response interceptor
 apiClient.interceptors.response.use(
-  (response: AxiosResponse) => {
-    console.log("📥 API Response:", response.status, response.config.url);
+  (response) => {
     return response;
   },
   (error) => {
@@ -40,16 +35,22 @@ apiClient.interceptors.response.use(
   }
 );
 
-// API functions
-export const userAPI = {
-  // Create new user
-  createUser: async (
-    userData: CreateUserRequest
-  ): Promise<ApiResponse<User>> => {
+// Student data interface
+interface Student {
+  id: string;
+  name: string;
+  studentId: string;
+  year: string;
+  // เพิ่ม fields อื่นๆ ตามที่ API ส่งมา
+}
+
+// Class API functions
+export const classAPI = {
+  // ดึงรายชื่อนักเรียนตามปีการศึกษา
+  getStudentsByYear: async (year: string): Promise<ApiResponse<Student[]>> => {
     try {
-      const response = await apiClient.post<ApiResponse<User>>(
-        API_CONFIG.ENDPOINTS.USERS.CREATE,
-        userData
+      const response = await apiClient.get<ApiResponse<Student[]>>(
+        API_CONFIG.ENDPOINTS.CLASS.GET_STUDENTS(year)
       );
       return response.data;
     } catch (error: any) {
@@ -64,47 +65,19 @@ export const userAPI = {
     }
   },
 
-  // Get all users
-  getUsers: async (
-    page: number = 1,
-    limit: number = 10
-  ): Promise<GetUsersResponse> => {
+  // Health check
+  healthCheck: async () => {
     try {
-      const response = await apiClient.get<GetUsersResponse>(
-        `${API_CONFIG.ENDPOINTS.USERS.LIST}?page=${page}&limit=${limit}`
-      );
+      const response = await apiClient.get(API_CONFIG.ENDPOINTS.HEALTH);
       return response.data;
     } catch (error: any) {
-      if (error.response?.data) {
-        return error.response.data;
-      }
       throw {
         success: false,
-        message: "Network error occurred",
+        message: "Health check failed",
         error: error.message,
       };
     }
   },
-
-  // Get user by ID
-  getUserById: async (id: string): Promise<ApiResponse<User>> => {
-    try {
-      const response = await apiClient.get<ApiResponse<User>>(
-        API_CONFIG.ENDPOINTS.USERS.GET_BY_ID(id)
-      );
-      return response.data;
-    } catch (error: any) {
-      if (error.response?.data) {
-        return error.response.data;
-      }
-      throw {
-        success: false,
-        message: "Network error occurred",
-        error: error.message,
-      };
-    }
-  },
-
 };
 
 export default apiClient;

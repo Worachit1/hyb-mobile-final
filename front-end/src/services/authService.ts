@@ -1,13 +1,8 @@
 import axios from "axios";
+import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_CONFIG, API_TIMEOUT } from "../config/api";
-import {
-  LoginRequest,
-  RegisterRequest,
-  AuthResponse,
-  ApiResponse,
-  User,
-} from "../types/api";
+import { LoginRequest, AuthResponse, ApiResponse, User } from "../types/api";
 
 // Create axios instance for auth
 const authClient = axios.create({
@@ -15,16 +10,18 @@ const authClient = axios.create({
   timeout: API_TIMEOUT,
   headers: {
     "Content-Type": "application/json",
+    "x-api-key": API_CONFIG.API_KEY, // User ระบุผ่าน API key
   },
 });
 
 // Storage keys
-const TOKEN_KEY = "auth_token";
-const USER_KEY = "auth_user";
+const TOKEN_KEY = "userToken";
+const USER_KEY = "userData";
 
-// Request interceptor to add token
+// Request interceptor
 authClient.interceptors.request.use(
   async (config) => {
+    // เพิ่ม token หาก signin แล้ว
     const token = await AsyncStorage.getItem(TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -41,7 +38,6 @@ authClient.interceptors.request.use(
 // Response interceptor
 authClient.interceptors.response.use(
   (response) => {
-    console.log("🔐 Auth Response:", response.status, response.config.url);
     return response;
   },
   async (error) => {
@@ -61,29 +57,100 @@ authClient.interceptors.response.use(
 );
 
 export const authAPI = {
-  // Login
-  login: async (credentials: LoginRequest): Promise<AuthResponse> => {
+  // Sign In
+  signin: async (credentials: LoginRequest): Promise<AuthResponse> => {
     try {
-      const response = await authClient.post<AuthResponse>(
-        API_CONFIG.ENDPOINTS.AUTH.LOGIN,
+      const response = await authClient.post<any>(
+        API_CONFIG.ENDPOINTS.AUTH.SIGNIN,
         credentials
       );
 
-      // Store token and user data
-      if (response.data.success && response.data.token && response.data.user) {
-        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
-        await AsyncStorage.setItem(
-          USER_KEY,
-          JSON.stringify(response.data.user)
-        );
+
+      // ตรวจสอบรูปแบบ response ที่แท้จริง
+      const responseData = response.data;
+
+      // กรณีที่ server ส่ง data ใน responseData.data
+      if (responseData && responseData.data) {
+        const userData = responseData.data;
+
+        console.log("🔐 Checking userData:", {
+          hasToken: !!userData.token,
+          tokenLength: userData.token ? userData.token.length : 0,
+          hasId: !!(userData._id || userData.id),
+          userId: userData._id || userData.id,
+        });
+
+        // ตรวจสอบว่ามี token และข้อมูล user
+        if (userData.token && (userData._id || userData.id)) {
+          // เก็บ token
+          await AsyncStorage.setItem(TOKEN_KEY, userData.token);
+          console.log(
+            "🔐 Token saved to storage:",
+            userData.token.length,
+            "characters"
+          );
+
+          // สร้าง user object ที่สอดคล้องกับ interface
+          const userObject = {
+            id: userData._id || userData.id,
+            name:
+              `${userData.firstname || ""} ${userData.lastname || ""}`.trim() ||
+              userData.email,
+            firstname: userData.firstname,
+            lastname: userData.lastname,
+            email: userData.email,
+            role: userData.role,
+            type: userData.type,
+            education: userData.education,
+          };
+
+          // เก็บ user data
+          await AsyncStorage.setItem(USER_KEY, JSON.stringify(userObject));
+          console.log("🔐 User data saved to storage:", userObject.name);
+
+          return {
+            success: true,
+            message: "Sign in successful",
+            user: {
+              id: userObject.id,
+              name: userObject.name,
+              firstname: userData.firstname,
+              lastname: userData.lastname,
+              email: userData.email,
+            },
+            token: userData.token,
+          };
+        }
       }
 
-      return response.data;
+      // ถ้าไม่ตรงเงื่อนไขไหนเลย
+      console.log("🔐 No token or user data found in response");
+      return {
+        success: false,
+        message: "Invalid response: missing token or user data",
+      };
     } catch (error: any) {
+      console.error("🔐 Signin error:", error);
       if (error.response?.data) {
-        return error.response.data;
+        console.log(
+          "🔐 Error response data:",
+          JSON.stringify(error.response.data, null, 2)
+        );
+
+        // ตรวจสอบว่า error response มี message หรือไม่
+        const errorData = error.response.data;
+        const errorMessage =
+          errorData.message ||
+          errorData.error ||
+          `Authentication failed (${error.response.status})`;
+
+        return {
+          success: false,
+          message: errorMessage,
+        };
       }
-      throw {
+
+      return {
         success: false,
         message: "Network error occurred",
         error: error.message,
@@ -91,37 +158,7 @@ export const authAPI = {
     }
   },
 
-  // Register
-  register: async (userData: RegisterRequest): Promise<AuthResponse> => {
-    try {
-      const response = await authClient.post<AuthResponse>(
-        API_CONFIG.ENDPOINTS.AUTH.REGISTER,
-        userData
-      );
-
-      // Store token and user data
-      if (response.data.success && response.data.token && response.data.user) {
-        await AsyncStorage.setItem(TOKEN_KEY, response.data.token);
-        await AsyncStorage.setItem(
-          USER_KEY,
-          JSON.stringify(response.data.user)
-        );
-      }
-
-      return response.data;
-    } catch (error: any) {
-      if (error.response?.data) {
-        return error.response.data;
-      }
-      throw {
-        success: false,
-        message: "Network error occurred",
-        error: error.message,
-      };
-    }
-  },
-
-  // Get Profile
+  // Get Profile - ดึงข้อมูล user profile จาก x-api-key
   getProfile: async (): Promise<ApiResponse<User>> => {
     try {
       const response = await authClient.get<ApiResponse<User>>(
@@ -164,6 +201,24 @@ export const authAPI = {
   isLoggedIn: async (): Promise<boolean> => {
     const token = await AsyncStorage.getItem(TOKEN_KEY);
     return !!token;
+  },
+
+  // Check if API key is valid
+  isAuthenticated: async (): Promise<boolean> => {
+    try {
+      const response = await authAPI.getProfile();
+      return response.success;
+    } catch (error: any) {
+      console.log(
+        "🔐 API Key validation failed:",
+        error.response?.status || error.message
+      );
+      // 401 หมายถึง API key ไม่ถูกต้องหรือไม่มีสิทธิ์
+      if (error.response?.status === 401) {
+        console.log("🔐 Invalid API key or unauthorized access");
+      }
+      return false;
+    }
   },
 };
 

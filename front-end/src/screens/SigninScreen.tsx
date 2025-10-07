@@ -12,42 +12,19 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 
-interface RegisterScreenProps {
-  onSwitchToLogin: () => void;
-}
-
-const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin }) => {
-  const [name, setName] = useState('');
+const SigninScreen: React.FC = () => {
+  const { signin: authSignin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState<{ 
-    name?: string; 
-    email?: string; 
-    password?: string; 
-    confirmPassword?: string;
-  }>({});
-  
-  const { register, isLoading } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
   const validateForm = (): boolean => {
-    const newErrors: { 
-      name?: string; 
-      email?: string; 
-      password?: string; 
-      confirmPassword?: string;
-    } = {};
-
-    // Name validation
-    if (!name.trim()) {
-      newErrors.name = 'Name is required';
-    } else if (name.trim().length < 2) {
-      newErrors.name = 'Name must be at least 2 characters';
-    }
+    const newErrors: { email?: string; password?: string } = {};
 
     // Email validation
     if (!email.trim()) {
@@ -61,34 +38,53 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin }) => {
       newErrors.password = 'Password is required';
     } else if (password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters';
-    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
-      newErrors.password = 'Password must contain at least one uppercase letter, one lowercase letter, and one number';
-    }
-
-    // Confirm password validation
-    if (!confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = async () => {
+  const handleSignin = async () => {
     if (!validateForm()) return;
 
-    const result = await register({ 
-      name: name.trim(), 
-      email: email.trim(), 
-      password 
-    });
-    
-    if (!result.success) {
-      Alert.alert('Registration Failed', result.message);
+    setLoading(true);
+    try {
+      console.log('🔐 Attempting signin with:', { email: email.trim(), password: '***' });
+      const result = await authSignin({ email: email.trim(), password });
+      
+      console.log('🔐 Signin result:', JSON.stringify(result, null, 2));
+      
+      if (result.success) {
+        console.log('🔐 Signin successful!');
+        
+        // Debug: ตรวจสอบ AsyncStorage ทันทีหลัง signin
+        setTimeout(async () => {
+          const token = await AsyncStorage.getItem('userToken');
+          const userData = await AsyncStorage.getItem('userData');
+          console.log('🔐 Post-signin storage check:', {
+            token: token ? 'Found' : 'Not found',
+            tokenLength: token ? token.length : 0,
+            userData: userData ? 'Found' : 'Not found'
+          });
+        }, 100);
+        
+        // แสดง Alert ที่เมื่อกด OK จะไปหน้า Profile (AuthContext จะจัดการ navigation)
+        Alert.alert(
+          'เข้าสู่ระบบสำเร็จ',
+          result.message,
+          [{ text: 'ตกลง', style: 'default' }]
+        );
+      } else {
+        const errorMessage = result.message || 'Invalid credentials';
+        console.log('🔐 Showing error:', errorMessage);
+        Alert.alert('Sign In Failed', errorMessage);
+      }
+    } catch (error: any) {
+      console.error('🔐 Network error:', error);
+      Alert.alert('Network Error', 'Unable to connect to server. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    // Success is handled by AuthContext and will redirect automatically
   };
 
   return (
@@ -98,32 +94,15 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin }) => {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
-          <Ionicons name="person-add" size={80} color="#007AFF" />
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Sign up to get started</Text>
+          <Ionicons name="lock-closed" size={80} color="#007AFF" />
+          <Text style={styles.title}>Welcome Back!</Text>
+          <Text style={styles.subtitle}>Sign in to access your classroom</Text>
+          <Text style={styles.debugText}>
+            Debug: Using API key + email/password authentication
+          </Text>
         </View>
 
         <View style={styles.form}>
-          {/* Name Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Full Name</Text>
-            <View style={[styles.inputWrapper, errors.name && styles.inputError]}>
-              <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your full name"
-                value={name}
-                onChangeText={(text) => {
-                  setName(text);
-                  if (errors.name) setErrors({ ...errors, name: undefined });
-                }}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-            </View>
-            {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
-          </View>
-
           {/* Email Input */}
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
@@ -176,57 +155,18 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ onSwitchToLogin }) => {
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
-          {/* Confirm Password Input */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Confirm Password</Text>
-            <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputError]}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChangeText={(text) => {
-                  setConfirmPassword(text);
-                  if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
-                }}
-                secureTextEntry={!showConfirmPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <TouchableOpacity
-                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                style={styles.eyeIcon}
-              >
-                <Ionicons
-                  name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
-            {errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
-          </View>
-
-          {/* Register Button */}
+          {/* Sign In Button */}
           <TouchableOpacity
-            style={[styles.registerButton, isLoading && styles.disabledButton]}
-            onPress={handleRegister}
-            disabled={isLoading}
+            style={[styles.signinButton, loading && styles.disabledButton]}
+            onPress={handleSignin}
+            disabled={loading}
           >
-            {isLoading ? (
+            {loading ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={styles.registerButtonText}>Create Account</Text>
+              <Text style={styles.signinButtonText}>Sign In</Text>
             )}
           </TouchableOpacity>
-
-          {/* Switch to Login */}
-          <View style={styles.switchContainer}>
-            <Text style={styles.switchText}>Already have an account? </Text>
-            <TouchableOpacity onPress={onSwitchToLogin}>
-              <Text style={styles.switchLink}>Sign In</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -258,6 +198,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     textAlign: 'center',
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   form: {
     width: '100%',
@@ -300,7 +247,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 5,
   },
-  registerButton: {
+  signinButton: {
     backgroundColor: '#007AFF',
     borderRadius: 12,
     height: 50,
@@ -311,25 +258,11 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#999',
   },
-  registerButtonText: {
+  signinButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
   },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 30,
-  },
-  switchText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  switchLink: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '600',
-  },
 });
 
-export default RegisterScreen;
+export default SigninScreen;
