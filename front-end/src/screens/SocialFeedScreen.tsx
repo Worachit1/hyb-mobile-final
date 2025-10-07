@@ -249,6 +249,63 @@ const SocialFeedScreen = () => {
     }
   };
 
+  const deleteComment = async (commentId: string, statusId: string) => {
+    Alert.alert(
+      'ยืนยันการลบ',
+      'คุณต้องการลบคอมเมนท์นี้หรือไม่?',
+      [
+        {
+          text: 'ยกเลิก',
+          style: 'cancel'
+        },
+        {
+          text: 'ลบ',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🗑️ Attempting to delete comment:', commentId, 'from status:', statusId);
+              
+              if (!commentId) {
+                Alert.alert('Error', 'ไม่พบ ID ของคอมเมนท์');
+                return;
+              }
+
+              const response = await statusService.deleteComment(statusId, commentId);
+              console.log('🗑️ Delete response:', response);
+              
+              if (response.success) {
+                Alert.alert('Success', 'ลบคอมเมนท์สำเร็จ');
+                loadStatuses(); // Reload to update comments
+                // Update the view modal status
+                const updatedStatuses = await statusService.getAllStatuses();
+                if (updatedStatuses.success && updatedStatuses.data) {
+                  const updatedStatus = updatedStatuses.data.find((s: any) => s._id === statusId);
+                  if (updatedStatus) {
+                    setViewCommentsModal({visible: true, status: updatedStatus as ExtendedStatus});
+                  }
+                }
+              } else {
+                Alert.alert('Error', response.message || 'ไม่สามารถลบคอมเมนท์ได้');
+              }
+            } catch (error) {
+              console.error('🗑️ Delete comment UI error:', error);
+              Alert.alert('Error', 'เกิดข้อผิดพลาดในการลบคอมเมนท์');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const isMyComment = (comment: any) => {
+    if (!user || !comment.createdBy) return false;
+    
+    const commentUserId = comment.createdBy._id || comment.createdBy.id;
+    const currentUserId = user._id || user.id;
+    
+    return commentUserId === currentUserId;
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('th-TH', {
@@ -476,12 +533,29 @@ const SocialFeedScreen = () => {
                     { content: comment, createdBy: { email: 'ผู้ใช้' } } : 
                     comment;
                   
+                  // Debug log to see comment structure
+                  console.log('🔍 Comment data:', JSON.stringify(commentData, null, 2));
+                  
+                  // Try to get comment ID from different possible fields
+                  const commentId = commentData._id || commentData.id || index.toString();
+                  
                   return (
                     <View key={index} style={styles.commentItem}>
                       <View style={styles.commentHeader}>
                         <Text style={styles.commentAuthor}>
                           {commentData.createdBy?.email || commentData.createdBy?.name || 'ผู้ใช้'}
                         </Text>
+                        {isMyComment(commentData) && commentId !== index.toString() && (
+                          <TouchableOpacity
+                            style={styles.deleteCommentButton}
+                            onPress={() => {
+                              console.log('🗑️ Delete button pressed for comment:', commentId);
+                              deleteComment(commentId, viewCommentsModal.status!._id);
+                            }}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#ff3040" />
+                          </TouchableOpacity>
+                        )}
                       </View>
                       <Text style={styles.commentText}>
                         {commentData.content}
@@ -759,6 +833,11 @@ const styles = StyleSheet.create({
   noCommentsSubtext: {
     fontSize: 14,
     color: '#ccc',
+  },
+  deleteCommentButton: {
+    padding: 8,
+    borderRadius: 15,
+    backgroundColor: '#ffe6e8',
   },
 });
 

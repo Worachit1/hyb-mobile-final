@@ -162,11 +162,19 @@ class StatusService {
   /**
    * ลบคอมเมนท์
    */
-  async deleteComment(id: string): Promise<StatusAPIResponse> {
+  async deleteComment(
+    statusId: string,
+    commentId: string
+  ): Promise<StatusAPIResponse> {
     try {
-      console.log("🗑️ Deleting comment:", id);
+      console.log("🗑️ Deleting comment:", { statusId, commentId });
 
-      const response = await api.delete(`/comment/${id}`);
+      // ใช้ endpoint ที่ถูกต้อง: /comment/{commentId} กับ statusId ใน body
+      const response = await api.delete(`/comment/${commentId}`, {
+        data: {
+          statusId: statusId,
+        },
+      });
 
       return {
         success: true,
